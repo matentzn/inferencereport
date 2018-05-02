@@ -7,6 +7,7 @@ import org.semanticweb.owlapi.model.*;
 import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.semanticweb.owlapi.search.EntitySearcher;
+import org.semanticweb.owlapi.util.AutoIRIMapper;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,9 +27,16 @@ public class InferenceAnalyser {
     public static void main(String[] args) {
         File ontology = new File(args[0]);
         File out = new File(args[1]);
+        String path = UUID.randomUUID().toString();
+        if(args.length>2) {
+            path = args[2];
+        }
+        File imports = new File(path);
+        System.out.println(imports);
+        System.out.println(imports.isDirectory());
 
         InferenceAnalyser p = new InferenceAnalyser();
-        p.process(ontology, out);
+        p.process(ontology, out,imports);
 
     }
 
@@ -40,14 +48,14 @@ public class InferenceAnalyser {
         }
     }
 
-    private void process(File ofile, File out) {
+    private void process(File ofile, File out, File imports) {
         Report report_subsumptions = new Report();
         Report report_equivalences = new Report();
         Report report_allsubsumptions = new Report();
         Report report_allequivalences = new Report();
 
         try {
-            OWLOntology o = processOntology(ofile);
+            OWLOntology o = processOntology(ofile,imports);
             Set<OWLClass> signature = o.getClassesInSignature(Imports.EXCLUDED);
 
             signature.remove(df.getOWLNothing());
@@ -191,9 +199,9 @@ signature.removeAll(deprecated);
     }
 
 
-    private OWLOntology processOntology(File ofile) {
+    private OWLOntology processOntology(File ofile,File imports) {
         try {
-            OWLOntology o = loadOntology(ofile);
+            OWLOntology o = loadOntology(ofile,imports);
             for (OWLOntology imp : o.getDirectImports()) {
                 IRI niri = IRI.create(BASE + UUID.randomUUID());
                 if (!imp.getOntologyID().getOntologyIRI().isPresent()) {
@@ -210,9 +218,15 @@ signature.removeAll(deprecated);
         return null;
     }
 
-    private OWLOntology loadOntology(File ofile) {
+    private OWLOntology loadOntology(File ofile, File imports) {
+        OWLOntologyManager manager = OWLManager.createOWLOntologyManager();
         try {
-            return OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(ofile);
+            if(imports.isDirectory()) {
+                log("Adding auto IRI mapper..");
+                OWLOntologyIRIMapper autoIRIMapper = new AutoIRIMapper(imports, true);
+                manager.addIRIMapper(autoIRIMapper);
+            }
+            return manager.loadOntology(IRI.create(ofile.toURI()));
         } catch (OWLOntologyCreationException e) {
             e.printStackTrace();
         }
