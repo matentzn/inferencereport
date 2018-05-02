@@ -4,7 +4,7 @@ Simple command line tool that outputs subsumptions and equivalences seperated by
 Example use 
 
 ```
- java -jar inferencereport-1.0-SNAPSHOT-jar-with-dependencies.jar fbbt-edit.obo /data/fbbt-edit
+ java -jar inferencereport-0.2-jar-with-dependencies.jar fbbt-edit.obo /data/fbbt-edit
 ```
 
 This will generate four files
