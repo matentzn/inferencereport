@@ -49,8 +49,12 @@ public class InferenceAnalyser {
         try {
             OWLOntology o = processOntology(ofile);
             Set<OWLClass> signature = o.getClassesInSignature(Imports.EXCLUDED);
+
             signature.remove(df.getOWLNothing());
             signature.remove(df.getOWLThing());
+            Set<OWLClass> deprecated = getDeprecatedClasses(signature,o);
+log("Nr deprecated: "+deprecated.size());
+signature.removeAll(deprecated);
             OWLOntology all = OWLManager.createOWLOntologyManager().createOntology(o.getAxioms(Imports.INCLUDED));
             OWLOntology root = OWLManager.createOWLOntologyManager().createOntology(o.getAxioms(Imports.EXCLUDED));
             Set<Subsumption> allSubsumptions = getSubsumptions(all, signature);
@@ -95,6 +99,23 @@ public class InferenceAnalyser {
         } catch (OWLOntologyCreationException e) {
             e.printStackTrace();
         }
+    }
+
+    private Set<OWLClass> getDeprecatedClasses(Set<OWLClass> signature, OWLOntology o) {
+        Set<OWLClass> deprecated = new HashSet<>();
+        for(OWLClass c:signature) {
+            for (OWLAnnotation a : EntitySearcher.getAnnotations(c, o, df.getOWLDeprecated())) {
+                OWLAnnotationValue value = a.getValue();
+                if (value instanceof OWLLiteral) {
+                    String val = ((OWLLiteral) value).getLiteral();
+                    if(val.equals("true")) {
+                        deprecated.add(c);
+                        break;
+                    }
+                }
+            }
+        }
+        return deprecated;
     }
 
     private List<String> extractEquivalenceDiffReport(OWLOntology o, Set<OWLClass> signature, Set<Equivalence> rootEquivalences, OWLOntology o_plus) {
@@ -148,7 +169,9 @@ public class InferenceAnalyser {
         OWLReasoner r = createELReasoner(o);
         for (OWLClass c : signature) {
             for (OWLClass sub : r.getSubClasses(c, true).getFlattened()) {
-                subs.add(new Subsumption(c, sub));
+                if(!c.equals(sub)) {
+                    subs.add(new Subsumption(c, sub));
+                }
             }
         }
         return subs;
@@ -159,7 +182,9 @@ public class InferenceAnalyser {
         OWLReasoner r = createELReasoner(o);
         for (OWLClass c : signature) {
             for (OWLClass sub : r.getEquivalentClasses(c)) {
-                subs.add(new Equivalence(c, sub));
+                if(!c.equals(sub)) {
+                    subs.add(new Equivalence(c, sub));
+                }
             }
         }
         return subs;
